@@ -361,10 +361,16 @@ class Application extends \yii\web\Application
     /**
      * Ensures that the resources folder exists and is writable.
      *
+     * @throws ErrorException
      * @throws InvalidConfigException
+     * @throws \yii\base\Exception
      */
     protected function ensureResourcePathExists()
     {
+        if (defined('CRAFT_EPHEMERAL') && CRAFT_EPHEMERAL === true) {
+            return;
+        }
+
         $resourceBasePath = Craft::getAlias($this->getConfig()->getGeneral()->resourceBasePath);
         @FileHelper::createDirectory($resourceBasePath);
 
