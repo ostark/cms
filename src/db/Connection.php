@@ -101,6 +101,20 @@ class Connection extends \yii\db\Connection
      */
     private $_quotedColumnNames;
 
+    /**
+     * Tables Craft will ignore form backups
+     */
+    public $ignoredBackupTables = [
+        Table::ASSETINDEXDATA,
+        Table::ASSETTRANSFORMINDEX,
+        Table::SESSIONS,
+        Table::TEMPLATECACHES,
+        Table::TEMPLATECACHEQUERIES,
+        Table::TEMPLATECACHEELEMENTS,
+        '{{%cache}}',
+        '{{%templatecachecriteria}}',
+    ];
+
     // Public Methods
     // =========================================================================
 
@@ -216,21 +230,11 @@ class Connection extends \yii\db\Connection
      */
     public function getIgnoredBackupTables(): array
     {
-        $tables = [
-            Table::ASSETINDEXDATA,
-            Table::ASSETTRANSFORMINDEX,
-            Table::SESSIONS,
-            Table::TEMPLATECACHES,
-            Table::TEMPLATECACHEQUERIES,
-            Table::TEMPLATECACHEELEMENTS,
-            '{{%cache}}',
-            '{{%templatecachecriteria}}',
-        ];
-
+        $tables = [];
         $schema = $this->getSchema();
 
-        foreach ($tables as $i => $table) {
-            $tables[$i] = $schema->getRawTableName($table);
+        foreach ($this->ignoredBackupTables as  $table) {
+            $tables[] = $schema->getRawTableName($table);
         }
 
         return $tables;
@@ -263,6 +267,13 @@ class Connection extends \yii\db\Connection
      */
     public function backupTo(string $filePath)
     {
+        // Fire a 'beforeCreateBackup' event
+        if ($this->hasEventHandlers(self::EVENT_BEFORE_CREATE_BACKUP)) {
+            $this->trigger(self::EVENT_BEFORE_CREATE_BACKUP, new BackupEvent([
+                'file' => $filePath
+            ]));
+        }
+
         // Determine the command that should be executed
         $backupCommand = Craft::$app->getConfig()->getGeneral()->backupCommand;
 
@@ -278,13 +289,6 @@ class Connection extends \yii\db\Connection
         // Create the shell command
         $backupCommand = $this->_parseCommandTokens($backupCommand, $filePath);
         $command = $this->_createShellCommand($backupCommand);
-
-        // Fire a 'beforeCreateBackup' event
-        if ($this->hasEventHandlers(self::EVENT_BEFORE_CREATE_BACKUP)) {
-            $this->trigger(self::EVENT_BEFORE_CREATE_BACKUP, new BackupEvent([
-                'file' => $filePath
-            ]));
-        }
 
         $this->_executeDatabaseShellCommand($command);
 
